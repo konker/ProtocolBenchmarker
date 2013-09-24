@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/Screen"
+    >
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        style="@style/Screen"
+        >
+        <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            style="@style/ButtonPanel"
+            >
+            <Button
+                android:id="@+id/buttonStart"
+                style="@style/InfoButton"
+                android:text="@string/start"
+                />
+            <Button
+                android:id="@+id/buttonPrefs"
+                style="@style/InfoButton"
+                android:text="@string/prefs"
+                />
+        </LinearLayout>
+        <TextView
+            android:id="@+id/labelTimeActive"
+            style="@style/InfoLabel"
+            android:text="@string/time_active"
+            android:editable="false"
+            />
+        <TextView
+            android:id="@+id/textTimeActive"
+            style="@style/InfoText"
+            android:text=""
+            android:editable="false"
+            />
+
+        <TextView
+            android:id="@+id/labelActivityLog"
+            style="@style/InfoLabel"
+            android:text="@string/activity_log"
+            android:editable="false"
+            />
+        <TextView
+            android:id="@+id/textActivityLog"
+            style="@style/InfoText"
+            android:text=""
+            android:editable="false"
+            />
+
+        <TextView
+            android:id="@+id/labelLocation"
+            style="@style/InfoLabel"
+            android:text="@string/location"
+            android:editable="false"
+            />
+        <TextView
+            android:id="@+id/textLocation"
+            style="@style/InfoText"
+            android:text=""
+            android:editable="false"
+            />
+
+        <TextView
+            android:id="@+id/labelNetworkInformation"
+            style="@style/InfoLabel"
+            android:text="@string/network_information"
+            android:editable="false"
+            />
+        <TextView
+            android:id="@+id/textNetworkInformation"
+            style="@style/InfoText"
+            android:text=""
+            android:editable="false"
+            />
+   </LinearLayout>
+</ScrollView>
+

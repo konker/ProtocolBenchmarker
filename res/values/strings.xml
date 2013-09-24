@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Protocol Benchmarker</string>
+    <string name="start">Start</string>
+    <string name="stop">Stop</string>
+    <string name="prefs">Preferences</string>
+    <string name="time_active">Time active</string>
+    <string name="location">Location</string>
+    <string name="network_information">Network information</string>
+    <string name="activity_log">Activity Log</string>
+
+    <string name="title_host">Host</string>
+    <string name="summary_host">Backend server hostname or IP address</string>
+    <string name="host">PROTOCOL_BENCHMARKER_HOST</string>
+
+    <string name="title_port">Port</string>
+    <string name="summary_port">Backend server port</string>
+    <string name="port">PROTOCOL_BENCHMARKER_PORT</string>
+</resources>

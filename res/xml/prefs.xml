@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    >
+    <EditTextPreference
+        android:title="@string/title_host"
+        android:summary="@string/summary_host"
+        android:key="@string/host"
+        />
+    <EditTextPreference
+        android:title="@string/title_port"
+        android:summary="@string/summary_port"
+        android:numeric="integer"
+        android:key="@string/port"
+        />
+</PreferenceScreen>
