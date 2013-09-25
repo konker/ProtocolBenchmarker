@@ -9,11 +9,14 @@ import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 
+import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
+
 import android.os.Message;
 import android.os.Handler;
 import android.os.Handler.Callback;
+import android.os.AsyncTask;
 import android.location.Location;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -24,6 +27,11 @@ import android.widget.TextView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.View.OnClickListener;
+
+import fi.hiit.cultar.protocol.*;
+import fi.hiit.cultar.application.LoginHandler;
+import fi.hiit.cultar.application.ApplicationEvent;
+import fi.hiit.cultar.application.ApplicationEventListener;
 
 import fi.hiit.android.sensors.LocationHelper;
 import fi.hiit.android.sensors.LocationHelper.LocationHelperClient;
@@ -41,6 +49,8 @@ public class MainActivity
 
     private boolean mActive;
     private long mActiveStartTimeStamp;
+    private ProtocolClient mProtocolClient;
+    private BenchmarkTask mBenchmarkTask;
 
     private TextView mTextTimeActive;
     private TextView mTextLocation;
@@ -97,6 +107,7 @@ public class MainActivity
         updateNetworkInformation();
 
         mTextActivityLog = (TextView)findViewById(R.id.textActivityLog);
+        activityLogClear();
 
         mButtonStart = (Button)findViewById(R.id.buttonStart);
         mButtonStart.setOnClickListener(new View.OnClickListener() {
@@ -192,10 +203,65 @@ public class MainActivity
     private void startBenchmark() {
         Log.i(MainActivity.TAG, "startBenchmark");
         updateNetworkInformation();
+
+        // assumes that we are properly configured at this point
+        mProtocolClient = new ProtocolClient(getHost(), Integer.parseInt(getPort()));
+
+        // Kick off the benchmark background task
+        mBenchmarkTask = new BenchmarkTask();
+        mBenchmarkTask.execute();
     }
 
     private void stopBenchmark() {
         Log.i(MainActivity.TAG, "stopBenchmark");
+        mProtocolClient.close();
+        mBenchmarkTask.cancel(false);
+        mBenchmarkTask = null;
+    }
+
+    private class BenchmarkTask extends AsyncTask<Void, Void, Boolean> {
+        @Override
+        protected Boolean doInBackground(Void... nothings) {
+            benchmarkExec(mProtocolClient);
+
+            //[XXX: this seems silly?]
+            return true;
+        }
+
+        @Override
+        protected void onPostExecute(Boolean result) {
+            // do something on UI thread
+        }
+    }
+
+    private void benchmarkExec(final ProtocolClient fClient) {
+        activityLogThread("Connecting...");
+        fClient.connect(new ConnectedCallback() {
+            @Override
+            public void onConnected(boolean success, IOException ex) {
+                if (success) {
+                    activityLogThread("CONNECTED: " + success);
+
+                    LoginHandler loginHandler = new LoginHandler(getUsername(), getPassword());
+                    loginHandler.register(fClient);
+                    loginHandler.addListener(ApplicationEvent.OnLogin, new ApplicationEventListener() {
+                        @Override
+                        public void update(boolean success, String reason) {
+                            if (success) {
+                                activityLogThread("LOGGED IN OK");
+                            }
+                            else {
+                                activityLogThread("LOGIN FAILED: " + reason);
+                            }
+                        }
+                    });
+                    loginHandler.exec();
+                }
+                else {
+                    activityLogThread("Connection error: " + ex);
+                }
+            }
+        });
     }
 
     private void updateNetworkInformation() {
@@ -213,12 +279,31 @@ public class MainActivity
         Log.i(MainActivity.TAG, "updateConfiguredStatus");
         if (isConfigured()) {
             mButtonStart.setEnabled(true);
-            mTextActivityLog.setText("Host: " + getHost() + "\n" + "Port: " + getPort() + "\n");
+            activityLog("Host: " + getHost());
+            activityLog("Port: " + getPort());
         }
         else {
             mButtonStart.setEnabled(false);
-            mTextActivityLog.setText("Backend server not configured. Please go to Preferences");
+            activityLog("Backend server not configured. Please go to Preferences");
         }
+    }
+
+    private void activityLogThread(String s) {
+        final String log = mTextActivityLog.getText() + s + "\n";
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mTextActivityLog.setText(log);
+            }
+        });
+    }
+
+    private void activityLog(String s) {
+        mTextActivityLog.setText(mTextActivityLog.getText() + s + "\n");
+    }
+
+    private void activityLogClear() {
+        mTextActivityLog.setText("");
     }
 
     private void startLocation() {
@@ -254,20 +339,24 @@ public class MainActivity
     }
 
     public String getHost() {
-        Log.d(MainActivity.TAG, getString(R.string.host));
-        Log.d(MainActivity.TAG, "|" + mPrefs.getString(getString(R.string.host), "") + "|");
         return mPrefs.getString(getString(R.string.host), "");
     }
 
     public String getPort() {
-        Log.d(MainActivity.TAG, getString(R.string.port));
-        Log.d(MainActivity.TAG, "|" + mPrefs.getString(getString(R.string.port), "") + "|");
         return mPrefs.getString(getString(R.string.port), "");
     }
 
+    public String getUsername() {
+        return mPrefs.getString(getString(R.string.username), "");
+    }
+
+    public String getPassword() {
+        return mPrefs.getString(getString(R.string.password), "");
+    }
+
     public boolean isConfigured() {
-        Log.d(MainActivity.TAG, "[" + getHost() + "][" + getPort() + "]");
-        return (!getHost().equals("") && !getPort().equals(""));
+        //Log.d(MainActivity.TAG, "[" + getHost() + "][" + getPort() + "][" + getUsername() + "][" + getPassword() + "]");
+        return (!getHost().equals("") && !getPort().equals("") && !getUsername().equals("") && !getPassword().equals(""));
     }
 }
 

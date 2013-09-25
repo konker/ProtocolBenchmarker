@@ -16,4 +16,12 @@
     <string name="title_port">Port</string>
     <string name="summary_port">Backend server port</string>
     <string name="port">PROTOCOL_BENCHMARKER_PORT</string>
+
+    <string name="title_username">Username</string>
+    <string name="summary_username">Backend server username</string>
+    <string name="username">PROTOCOL_BENCHMARKER_USERNAME</string>
+
+    <string name="title_password">Password</string>
+    <string name="summary_password">Backend server password</string>
+    <string name="password">PROTOCOL_BENCHMARKER_PASSWORD</string>
 </resources>

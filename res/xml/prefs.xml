@@ -13,4 +13,14 @@
         android:numeric="integer"
         android:key="@string/port"
         />
+    <EditTextPreference
+        android:title="@string/title_username"
+        android:summary="@string/summary_username"
+        android:key="@string/username"
+        />
+    <EditTextPreference
+        android:title="@string/title_password"
+        android:summary="@string/summary_password"
+        android:key="@string/password"
+        />
 </PreferenceScreen>
