@@ -17,6 +17,23 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_marginBottom">12dp</item>
     </style>
+    <style name="MapPanel">
+        <item name="android:orientation">horizontal</item>
+        <item name="android:layout_width">fill_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginBottom">12dp</item>
+    </style>
+    <style name="Map">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">184dp</item>
+    </style>
+    <style name="InfoPanel">
+        <item name="android:orientation">vertical</item>
+        <item name="android:layout_width">fill_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginBottom">12dp</item>
+        <item name="android:layout_weight">1</item>
+    </style>
     <style name="ListItem">
         <item name="android:layout_width">fill_parent</item>
         <item name="android:layout_height">wrap_content</item>
@@ -41,7 +58,14 @@
         <item name="android:layout_width">fill_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:padding">6dp</item>
-        <item name="android:maxLines">25</item>
+        <item name="android:scrollbars">vertical</item>
+        <item name="android:typeface">monospace</item>
+    </style>
+    <style name="InfoBigText" parent="@android:style/TextAppearance">
+        <item name="android:layout_width">fill_parent</item>
+        <item name="android:layout_height">fill_parent</item>
+        <item name="android:padding">6dp</item>
+        <item name="android:maxLines">35</item>
         <item name="android:scrollbars">vertical</item>
         <item name="android:typeface">monospace</item>
     </style>

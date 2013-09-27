@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<db>
+  <!-- these must match the queries below -->
+  <!--
+  //[XXX: do we need these?]
+  <query name="t_simple_benchmarks">simple_benchmarks</query>
+  <query name="c_network_info">network_info</query>
+  <query name="c_location_info">location_info</query>
+  <query name="c_data1">data1</query>
+  <query name="c_data2">data2</query>
+  <query name="c_data3">data3</query>
+  <query name="c_data4">data4</query>
+  -->
+
+  <query name="create_table">
+    CREATE TABLE simple_benchmarks
+    (
+        _id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        network_info TEXT DEFAULT NULL,
+        location_info TEXT DEFAULT NULL,
+        data1 TEXT NOT NULL,
+        data2 TEXT DEFAULT NULL,
+        data3 TEXT DEFAULT NULL,
+        data4 TEXT DEFAULT NULL
+    )
+  </query>
+  <query name="drop_table">
+    DROP TABLE simple_benchmarks
+  </query>
+  <query name="insert">
+    INSERT INTO simple_benchmarks (network_info, location_info, data1, data2. data3, data4) VALUES (?,?,?,?,?,?)
+  </query>
+  <query name="select_all">
+    SELECT * FROM simple_benchmarks;
+  </query>
+</db>

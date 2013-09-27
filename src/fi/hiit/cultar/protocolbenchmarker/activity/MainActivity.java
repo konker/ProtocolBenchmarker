@@ -3,13 +3,17 @@ package fi.hiit.cultar.protocolbenchmarker.activity;
 import android.util.Log;
 import android.app.Activity;
 import android.os.Bundle;
+import android.os.Environment;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.List;
+import java.util.LinkedList;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -28,13 +32,18 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.View.OnClickListener;
 
-import fi.hiit.cultar.protocol.*;
-import fi.hiit.cultar.application.LoginHandler;
-import fi.hiit.cultar.application.ApplicationEvent;
-import fi.hiit.cultar.application.ApplicationEventListener;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.MapFragment;
+import com.google.android.gms.maps.CameraUpdate;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.model.LatLng;
 
 import fi.hiit.android.sensors.LocationHelper;
 import fi.hiit.android.sensors.LocationHelper.LocationHelperClient;
+import fi.hiit.cultar.protocolbenchmarker.Benchmark;
+import fi.hiit.cultar.protocolbenchmarker.LoginBenchmark;
+import fi.hiit.cultar.protocolbenchmarker.DataStore;
+import fi.hiit.cultar.protocolbenchmarker.DataStoreException;
 import fi.hiit.cultar.protocolbenchmarker.R;
 
 
@@ -43,17 +52,21 @@ public class MainActivity
                 implements LocationHelperClient, OnSharedPreferenceChangeListener {
 
     public static final String TAG = "ProtocolBenchmarker";
+    public static final String FILE_DIR = "protocol_benchmarker";
+    public static final String DATABASE_NAME = "simple_benchmarks.db";
 
     private SharedPreferences mPrefs;
     private SharedPreferences.Editor mPrefsEditor;
 
     private boolean mActive;
     private long mActiveStartTimeStamp;
-    private ProtocolClient mProtocolClient;
+    private DataStore mDataStore;
     private BenchmarkTask mBenchmarkTask;
+    private List<Benchmark> mBenchmarks;
 
     private TextView mTextTimeActive;
     private TextView mTextLocation;
+    private GoogleMap mMap;
     private TextView mTextNetworkInformation;
     private TextView mTextActivityLog;
     private Button mButtonStart;
@@ -94,6 +107,8 @@ public class MainActivity
         mActive = false;
         mActiveStartTimeStamp = -1;
 
+        mBenchmarks = new LinkedList<Benchmark>();
+
         mLocationHelper = new LocationHelper(this, this);
         mConnectivityManager = (ConnectivityManager)
                                 getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -102,6 +117,7 @@ public class MainActivity
         mTextTimeActive = (TextView)findViewById(R.id.textTimeActive);
 
         mTextLocation = (TextView)findViewById(R.id.textLocation);
+        mMap = ((MapFragment) getFragmentManager().findFragmentById(R.id.map)).getMap();
 
         mTextNetworkInformation = (TextView)findViewById(R.id.textNetworkInformation);
         updateNetworkInformation();
@@ -115,7 +131,7 @@ public class MainActivity
             public void onClick(View view) {
                 Log.d(MainActivity.TAG, "MainActivity.buttonStart clicked");
                 if (mActive) {
-                    stopBenchmark();
+                    stopBenchmarks();
                     stopLocation();
                     stopActiveTimer();
                     mButtonStart.setText(R.string.start);
@@ -126,7 +142,7 @@ public class MainActivity
                 else {
                     mButtonPrefs.setEnabled(false);
                     startLocation();
-                    startBenchmark();
+                    startBenchmarks();
                     startActiveTimer();
                     mButtonStart.setText(R.string.stop);
                     //mButtonStart.setBackgroundResource(R.color.stop_red);
@@ -134,8 +150,6 @@ public class MainActivity
                 }
             }
         });
-
-        updateConfiguredStatus();
 
         mButtonPrefs = (Button)findViewById(R.id.buttonPrefs);
         mButtonPrefs.setOnClickListener(new View.OnClickListener() {
@@ -146,6 +160,21 @@ public class MainActivity
                 startActivity(intent);
             }
         });
+
+        try {
+            mDataStore = new DataStore(this,
+                                       Environment.getExternalStorageDirectory()
+                                            + File.separator + FILE_DIR
+                                            + File.separator + DATABASE_NAME,
+                                       R.raw.simple_benchmarks);
+        }
+        catch (DataStoreException ex1) {
+            Log.e(TAG, "Could not create DataStore: " + ex1.getMessage());
+            activityLog("Could not create DataStore: " + ex1.getMessage());
+        }
+
+        updateConfiguredStatus();
+        addBenchmark(new LoginBenchmark(this, mDataStore));
     }
 
     @Override
@@ -187,6 +216,10 @@ public class MainActivity
         Log.d(MainActivity.TAG, "setBestLocationEstimate: " + location);
         mLocation = location;
         mTextLocation.setText(mLocation.toString());
+        CameraUpdate center = CameraUpdateFactory.newLatLng(new LatLng(location.getLatitude(),
+                                                                       location.getLongitude()));
+        Log.d(TAG, "CameraUpdate: " + center);
+        mMap.moveCamera(center);
     }
     /* }}} */
 
@@ -200,21 +233,29 @@ public class MainActivity
     }
     /* }}} */
 
-    private void startBenchmark() {
-        Log.i(MainActivity.TAG, "startBenchmark");
-        updateNetworkInformation();
+    public void addBenchmark(Benchmark benchmark) {
+        mBenchmarks.add(benchmark);
+    }
 
-        // assumes that we are properly configured at this point
-        mProtocolClient = new ProtocolClient(getHost(), Integer.parseInt(getPort()));
+    public void removeBenchmark(Benchmark benchmark) {
+        mBenchmarks.remove(benchmark);
+    }
+
+    private void startBenchmarks() {
+        Log.i(MainActivity.TAG, "startBenchmarks");
+        updateNetworkInformation();
 
         // Kick off the benchmark background task
         mBenchmarkTask = new BenchmarkTask();
         mBenchmarkTask.execute();
     }
 
-    private void stopBenchmark() {
-        Log.i(MainActivity.TAG, "stopBenchmark");
-        mProtocolClient.close();
+    private void stopBenchmarks() {
+        Log.i(MainActivity.TAG, "stopBenchmarks");
+        for (Benchmark benchmark : mBenchmarks) {
+            benchmark.close();
+        }
+
         mBenchmarkTask.cancel(false);
         mBenchmarkTask = null;
     }
@@ -222,7 +263,7 @@ public class MainActivity
     private class BenchmarkTask extends AsyncTask<Void, Void, Boolean> {
         @Override
         protected Boolean doInBackground(Void... nothings) {
-            benchmarkExec(mProtocolClient);
+            benchmarkExec();
 
             //[XXX: this seems silly?]
             return true;
@@ -234,34 +275,10 @@ public class MainActivity
         }
     }
 
-    private void benchmarkExec(final ProtocolClient fClient) {
-        activityLogThread("Connecting...");
-        fClient.connect(new ConnectedCallback() {
-            @Override
-            public void onConnected(boolean success, IOException ex) {
-                if (success) {
-                    activityLogThread("CONNECTED: " + success);
-
-                    LoginHandler loginHandler = new LoginHandler(getUsername(), getPassword());
-                    loginHandler.register(fClient);
-                    loginHandler.addListener(ApplicationEvent.OnLogin, new ApplicationEventListener() {
-                        @Override
-                        public void update(boolean success, String reason) {
-                            if (success) {
-                                activityLogThread("LOGGED IN OK");
-                            }
-                            else {
-                                activityLogThread("LOGIN FAILED: " + reason);
-                            }
-                        }
-                    });
-                    loginHandler.exec();
-                }
-                else {
-                    activityLogThread("Connection error: " + ex);
-                }
-            }
-        });
+    private void benchmarkExec() {
+        for (Benchmark benchmark : mBenchmarks) {
+            benchmark.run();
+        }
     }
 
     private void updateNetworkInformation() {
@@ -277,10 +294,14 @@ public class MainActivity
 
     private void updateConfiguredStatus() {
         Log.i(MainActivity.TAG, "updateConfiguredStatus");
-        if (isConfigured()) {
+        if (isConfigured() && mDataStore != null) {
             mButtonStart.setEnabled(true);
             activityLog("Host: " + getHost());
             activityLog("Port: " + getPort());
+        }
+        else if (mDataStore == null) {
+            mButtonStart.setEnabled(false);
+            activityLog("No DataStore.");
         }
         else {
             mButtonStart.setEnabled(false);
@@ -288,7 +309,7 @@ public class MainActivity
         }
     }
 
-    private void activityLogThread(String s) {
+    public void activityLogThread(String s) {
         final String log = mTextActivityLog.getText() + s + "\n";
         runOnUiThread(new Runnable() {
             @Override
@@ -298,11 +319,11 @@ public class MainActivity
         });
     }
 
-    private void activityLog(String s) {
+    public void activityLog(String s) {
         mTextActivityLog.setText(mTextActivityLog.getText() + s + "\n");
     }
 
-    private void activityLogClear() {
+    public void activityLogClear() {
         mTextActivityLog.setText("");
     }
 
