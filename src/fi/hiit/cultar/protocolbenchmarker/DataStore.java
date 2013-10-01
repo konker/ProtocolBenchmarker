@@ -42,6 +42,10 @@ public class DataStore {
         writeExec(networkInfo, locationInfo, data1, data2, null, null);
     }
 
+    public void write(String networkInfo, String locationInfo, String data1, String data2, String data3) throws DataStoreException {
+        writeExec(networkInfo, locationInfo, data1, data2, data3, null);
+    }
+
     public void writeExec(String networkInfo, String locationInfo, String data1, String data2, String data3, String data4) throws DataStoreException {
         // Insert a record into the database
         // Automatically add a timestamp (and other metadata?)

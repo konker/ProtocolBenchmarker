@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.LinkedList;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.nio.ByteBuffer;
 
 import android.os.Message;
 import android.os.Handler;
@@ -38,7 +39,8 @@ import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.model.LatLng;
 
-import fi.hiit.cultar.protocol.ProtocolClient;
+import fi.hiit.cultar.protocol.InstrumentedProtocolClient;
+import fi.hiit.cultar.protocol.IInstrumentationListener;
 import fi.hiit.cultar.protocol.ConnectionStateCallback;
 
 import fi.hiit.android.sensors.LocationHelper;
@@ -66,10 +68,12 @@ public class MainActivity
     private boolean mConnected;
     private long mActiveStartTimeStamp;
     private DataStore mDataStore;
-    private ProtocolClient mProtocolClient;
+    private InstrumentedProtocolClient mProtocolClient;
     private BenchmarkTask mBenchmarkTask;
     private ConnectTask mConnectTask;
     private List<Benchmark> mBenchmarks;
+
+    private NetworkInfo mNetworkInfo;
 
     private TextView mTextTimeActive;
     private TextView mTextLocation;
@@ -181,9 +185,34 @@ public class MainActivity
             activityLog("Could not create DataStore: " + ex1.getMessage());
         }
 
-        mProtocolClient = new ProtocolClient();
+        mProtocolClient = new InstrumentedProtocolClient();
         mProtocolClient.setHost(getHost());
         mProtocolClient.setPort(getPort());
+
+        // Add IInstrumentationListener which will store data into mDataStore
+        mProtocolClient.addInstrumentationListener(new IInstrumentationListener() {
+            @Override
+            public void updateRead(long ts, long byteCount) {
+                //Log.i(TAG, "INSTRUMENTATION READ: " + ts + ": " + byteCount);
+                try {
+                    mDataStore.write(String.valueOf(mNetworkInfo), String.valueOf(mLocation), String.valueOf(ts), String.valueOf(byteCount), "CLIENT_READ");
+                }
+                catch (DataStoreException ex1) {
+                    Log.e(TAG, "Instrumentation Error: " + ex1.getMessage());
+                }
+            }
+
+            @Override
+            public void updateWrite(long ts, long byteCount) {
+                //Log.i(TAG, "INSTRUMENTATION WRITE: " + ts + ": " + byteCount);
+                try {
+                    mDataStore.write(String.valueOf(mNetworkInfo), String.valueOf(mLocation), String.valueOf(ts), String.valueOf(byteCount), "CLIENT_WRITE");
+                }
+                catch (DataStoreException ex1) {
+                    Log.e(TAG, "Instrumentation Error: " + ex1.getMessage());
+                }
+            }
+        });
 
         setConnected(false);
         updateConfiguredStatus();
@@ -376,9 +405,9 @@ public class MainActivity
 
     private void updateNetworkInformation() {
         Log.i(MainActivity.TAG, "updateNetworkInformation");
-        NetworkInfo networkInfo = mConnectivityManager.getActiveNetworkInfo();
-        if (networkInfo != null && networkInfo.isConnected()) {
-            mTextNetworkInformation.setText(networkInfo.toString());
+        mNetworkInfo = mConnectivityManager.getActiveNetworkInfo();
+        if (mNetworkInfo != null && mNetworkInfo.isConnected()) {
+            mTextNetworkInformation.setText(mNetworkInfo.toString());
         }
         else {
             mTextNetworkInformation.setText("Could not get network information");

@@ -17,7 +17,7 @@
     DROP TABLE simple_benchmarks
   </query>
   <query name="insert">
-    INSERT INTO simple_benchmarks (network_info, location_info, data1, data2. data3, data4) VALUES (?,?,?,?,?,?)
+    INSERT INTO simple_benchmarks (network_info, location_info, data1, data2, data3, data4) VALUES (?,?,?,?,?,?)
   </query>
   <query name="select_all">
     SELECT * FROM simple_benchmarks;
