@@ -1,17 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?> 
 <db>
-  <!-- these must match the queries below -->
-  <!--
-  //[XXX: do we need these?]
-  <query name="t_simple_benchmarks">simple_benchmarks</query>
-  <query name="c_network_info">network_info</query>
-  <query name="c_location_info">location_info</query>
-  <query name="c_data1">data1</query>
-  <query name="c_data2">data2</query>
-  <query name="c_data3">data3</query>
-  <query name="c_data4">data4</query>
-  -->
-
   <query name="create_table">
     CREATE TABLE simple_benchmarks
     (

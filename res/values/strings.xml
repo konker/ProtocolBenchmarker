@@ -2,6 +2,8 @@
 <resources>
     <string name="app_name">Protocol Benchmarker</string>
     <string name="start">Start</string>
+    <string name="connect">Connect</string>
+    <string name="disconnect">Disconnect</string>
     <string name="stop">Stop</string>
     <string name="prefs">Preferences</string>
     <string name="time_active">Time active</string>

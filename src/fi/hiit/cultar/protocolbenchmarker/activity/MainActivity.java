@@ -38,8 +38,12 @@ import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.model.LatLng;
 
+import fi.hiit.cultar.protocol.ProtocolClient;
+import fi.hiit.cultar.protocol.ConnectionStateCallback;
+
 import fi.hiit.android.sensors.LocationHelper;
 import fi.hiit.android.sensors.LocationHelper.LocationHelperClient;
+
 import fi.hiit.cultar.protocolbenchmarker.Benchmark;
 import fi.hiit.cultar.protocolbenchmarker.LoginBenchmark;
 import fi.hiit.cultar.protocolbenchmarker.DataStore;
@@ -59,9 +63,12 @@ public class MainActivity
     private SharedPreferences.Editor mPrefsEditor;
 
     private boolean mActive;
+    private boolean mConnected;
     private long mActiveStartTimeStamp;
     private DataStore mDataStore;
+    private ProtocolClient mProtocolClient;
     private BenchmarkTask mBenchmarkTask;
+    private ConnectTask mConnectTask;
     private List<Benchmark> mBenchmarks;
 
     private TextView mTextTimeActive;
@@ -70,6 +77,7 @@ public class MainActivity
     private TextView mTextNetworkInformation;
     private TextView mTextActivityLog;
     private Button mButtonStart;
+    private Button mButtonConnect;
     private Button mButtonPrefs;
 
     private LocationHelper mLocationHelper;
@@ -130,23 +138,23 @@ public class MainActivity
             @Override
             public void onClick(View view) {
                 Log.d(MainActivity.TAG, "MainActivity.buttonStart clicked");
-                if (mActive) {
-                    stopBenchmarks();
-                    stopLocation();
-                    stopActiveTimer();
-                    mButtonStart.setText(R.string.start);
-                    mButtonPrefs.setEnabled(true);
-                    //mButtonStart.setBackgroundResource(R.color.start_green);
-                    mActive = false;
+                setActive(!mActive);
+            }
+        });
+
+        mButtonConnect = (Button)findViewById(R.id.buttonConnect);
+        mButtonConnect.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Log.d(MainActivity.TAG, "MainActivity.buttonConnect clicked");
+                if (mConnected) {
+                    mProtocolClient.close();
+                    mButtonConnect.setText(R.string.connect);
                 }
                 else {
-                    mButtonPrefs.setEnabled(false);
-                    startLocation();
-                    startBenchmarks();
-                    startActiveTimer();
-                    mButtonStart.setText(R.string.stop);
-                    //mButtonStart.setBackgroundResource(R.color.stop_red);
-                    mActive = true;
+                    mConnectTask = new ConnectTask();
+                    mConnectTask.execute();
+                    mButtonConnect.setText(R.string.disconnect);
                 }
             }
         });
@@ -173,8 +181,14 @@ public class MainActivity
             activityLog("Could not create DataStore: " + ex1.getMessage());
         }
 
+        mProtocolClient = new ProtocolClient();
+        mProtocolClient.setHost(getHost());
+        mProtocolClient.setPort(getPort());
+
+        setConnected(false);
         updateConfiguredStatus();
-        addBenchmark(new LoginBenchmark(this, mDataStore));
+
+        addBenchmark(new LoginBenchmark(mProtocolClient, this, mDataStore));
     }
 
     @Override
@@ -228,6 +242,12 @@ public class MainActivity
      */
     public synchronized void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
         Log.i(MainActivity.TAG, "onSharedPreferenceChanged");
+        if (key.equals(getString(R.string.host))) {
+            mProtocolClient.setHost(getHost());
+        }
+        else if (key.equals(getString(R.string.port))) {
+            mProtocolClient.setPort(getPort());
+        }
         updateConfiguredStatus();
         return;
     }
@@ -256,28 +276,101 @@ public class MainActivity
             benchmark.close();
         }
 
-        mBenchmarkTask.cancel(false);
-        mBenchmarkTask = null;
+        if (mBenchmarkTask != null) {
+            mBenchmarkTask.cancel(false);
+            mBenchmarkTask = null;
+        }
     }
 
-    private class BenchmarkTask extends AsyncTask<Void, Void, Boolean> {
+    private class BenchmarkTask extends AsyncTask<Void, Void, Void> {
         @Override
-        protected Boolean doInBackground(Void... nothings) {
+        protected Void doInBackground(Void... nothings) {
             benchmarkExec();
-
-            //[XXX: this seems silly?]
-            return true;
+            return null; // -> Void
         }
 
         @Override
-        protected void onPostExecute(Boolean result) {
+        protected void onPostExecute(Void result) {
             // do something on UI thread
         }
     }
 
     private void benchmarkExec() {
         for (Benchmark benchmark : mBenchmarks) {
+            Log.d(TAG, "running benchmark: " + benchmark);
             benchmark.run();
+        }
+    }
+
+    private class ConnectTask extends AsyncTask<Void, Void, Void> {
+        @Override
+        protected Void doInBackground(Void... nothings) {
+            connectExec();
+            return null; // -> Void
+        }
+
+        @Override
+        protected void onPostExecute(Void result) {
+        }
+    }
+
+    private void connectExec() {
+        activityLogThread("Connecting...");
+        mProtocolClient.connect(new ConnectionStateCallback() {
+            @Override
+            public void onConnected(final boolean success, Exception ex) {
+                //[TODO: is there a less clunky way to handle this?]
+                if (success) {
+                    MainActivity.this.activityLogThread("CONNECTED: " + success);
+
+                }
+                else {
+                    MainActivity.this.activityLogThread("Connection error: " + ex);
+                }
+
+                //[TODO: is there a less clunky way to handle this?]
+                MainActivity.this.runOnUiThread(new Runnable() {
+                    @Override public void run() {
+                        MainActivity.this.setConnected(success);
+                    }
+                });
+            }
+
+            @Override
+            public void onDisconnected(Exception ex) {
+                if (ex != null) {
+                    MainActivity.this.activityLogThread("DISCONNECTED: " + ex.getMessage());
+                }
+                else {
+                    MainActivity.this.activityLogThread("DISCONNECTED");
+                }
+
+                //[TODO: is there a less clunky way to handle this?]
+                MainActivity.this.runOnUiThread(new Runnable() {
+                    @Override public void run() {
+                        MainActivity.this.setConnected(false);
+                    }
+                });
+            }
+        });
+    }
+
+    private void setActive(boolean active) {
+        mActive = active;
+
+        if (mActive) {
+            startLocation();
+            startBenchmarks();
+            startActiveTimer();
+            mButtonStart.setText(R.string.stop);
+            //mButtonStart.setBackgroundResource(R.color.stop_red);
+        }
+        else {
+            stopBenchmarks();
+            stopLocation();
+            stopActiveTimer();
+            mButtonStart.setText(R.string.start);
+            //mButtonStart.setBackgroundResource(R.color.start_green);
         }
     }
 
@@ -292,19 +385,33 @@ public class MainActivity
         }
     }
 
+    private void setConnected(boolean connected) {
+        mConnected = connected;
+        if (mConnected) {
+            mButtonConnect.setText(R.string.disconnect);
+            mButtonPrefs.setEnabled(false);
+        }
+        else {
+            mButtonConnect.setText(R.string.connect);
+            mButtonPrefs.setEnabled(true);
+            setActive(false);
+        }
+        mButtonStart.setEnabled(mConnected);
+    }
+
     private void updateConfiguredStatus() {
         Log.i(MainActivity.TAG, "updateConfiguredStatus");
         if (isConfigured() && mDataStore != null) {
-            mButtonStart.setEnabled(true);
+            mButtonConnect.setEnabled(true);
             activityLog("Host: " + getHost());
             activityLog("Port: " + getPort());
         }
         else if (mDataStore == null) {
-            mButtonStart.setEnabled(false);
+            mButtonConnect.setEnabled(false);
             activityLog("No DataStore.");
         }
         else {
-            mButtonStart.setEnabled(false);
+            mButtonConnect.setEnabled(false);
             activityLog("Backend server not configured. Please go to Preferences");
         }
     }
@@ -347,9 +454,11 @@ public class MainActivity
 
     private void stopActiveTimer() {
         Log.i(MainActivity.TAG, "stopActiveTimer");
-        mTimer.cancel();
-        mTimer.purge();
-        mTimer = null;
+        if (mTimer != null) {
+            mTimer.cancel();
+            mTimer.purge();
+            mTimer = null;
+        }
     }
 
     private String formatActiveTime(long ms) {

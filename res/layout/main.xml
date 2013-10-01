@@ -6,14 +6,19 @@
         style="@style/ButtonPanel"
         >
         <Button
-            android:id="@+id/buttonStart"
-            style="@style/InfoButton"
-            android:text="@string/start"
-            />
-        <Button
             android:id="@+id/buttonPrefs"
             style="@style/InfoButton"
             android:text="@string/prefs"
+            />
+        <Button
+            android:id="@+id/buttonConnect"
+            style="@style/InfoButton"
+            android:text="@string/connect"
+            />
+        <Button
+            android:id="@+id/buttonStart"
+            style="@style/InfoButton"
+            android:text="@string/start"
             />
     </LinearLayout>
     <TextView
